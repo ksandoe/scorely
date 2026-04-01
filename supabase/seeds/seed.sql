@@ -1,0 +1,2 @@
+-- Placeholder seed.
+-- Intentionally empty scaffold; add seed data later.

@@ -1,0 +1,2 @@
+-- Placeholder migration.
+-- Intentionally empty scaffold; implement schema later.
