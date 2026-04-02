@@ -1,0 +1,1566 @@
+openapi: 3.1.0
+info:
+  title: Scorely API
+  version: 1.0.0
+  summary: REST API for Scorely
+  description: |
+    Scorely is a social music rating platform centered on songs, ratings, reviews,
+    bookmarks, friend connections, and search history. This API is intended to be
+    the only application-facing interface to the data layer so that clients never
+    access Supabase/Postgres directly.
+
+    Authentication model:
+    - Clients obtain a JWT via OTP-based authentication.
+    - Clients then send `Authorization: Bearer <JWT>` on protected routes.
+    - The API enforces ownership, validation, and authorization rules.
+
+    Design notes:
+    - Song catalog reads are public in the current database policy model.
+    - Song catalog reads are public to anonymous and authenticated users.
+    - Song writes are available to authenticated users through the API.
+servers:
+  - url: https://api.scorely.app/v1
+    description: Production
+  - url: http://localhost:3000/v1
+    description: Local development
+
+tags:
+  - name: Auth
+  - name: Profiles
+  - name: Songs
+  - name: Ratings
+  - name: Bookmarks
+  - name: Friends
+  - name: Search
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    SongId:
+      name: songId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    RatingId:
+      name: ratingId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    BookmarkId:
+      name: bookmarkId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    FriendId:
+      name: friendId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SearchId:
+      name: searchId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          examples: [validation_error]
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    PaginationMeta:
+      type: object
+      required: [page, pageSize, total]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          minimum: 0
+
+    Profile:
+      type: object
+      required: [id, username, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+        createdAt:
+          type: string
+          format: date-time
+
+    UpdateProfileRequest:
+      type: object
+      additionalProperties: false
+      required: [username]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+
+    Song:
+      type: object
+      required: [songId, title, artist, createdAt]
+      properties:
+        songId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        artist:
+          type: string
+          minLength: 1
+          maxLength: 255
+        albumArt:
+          type: string
+          format: uri
+          nullable: true
+        genre:
+          type: string
+          nullable: true
+        releaseYear:
+          type: integer
+          minimum: 1800
+          maximum: 2100
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateSongRequest:
+      type: object
+      additionalProperties: false
+      required: [title, artist]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        artist:
+          type: string
+          minLength: 1
+          maxLength: 255
+        albumArt:
+          type: string
+          format: uri
+          nullable: true
+        genre:
+          type: string
+          nullable: true
+        releaseYear:
+          type: integer
+          minimum: 1800
+          maximum: 2100
+          nullable: true
+
+    UpdateSongRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        artist:
+          type: string
+          minLength: 1
+          maxLength: 255
+        albumArt:
+          type: string
+          format: uri
+          nullable: true
+        genre:
+          type: string
+          nullable: true
+        releaseYear:
+          type: integer
+          minimum: 1800
+          maximum: 2100
+          nullable: true
+
+    Rating:
+      type: object
+      required: [ratingId, userId, songId, ratingValue, createdAt]
+      properties:
+        ratingId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        songId:
+          type: string
+          format: uuid
+        ratingValue:
+          type: integer
+          minimum: 1
+          maximum: 5
+        review:
+          type: string
+          maxLength: 1000
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        song:
+          $ref: '#/components/schemas/Song'
+        profile:
+          $ref: '#/components/schemas/Profile'
+
+    CreateRatingRequest:
+      type: object
+      additionalProperties: false
+      required: [songId, ratingValue]
+      properties:
+        songId:
+          type: string
+          format: uuid
+        ratingValue:
+          type: integer
+          minimum: 1
+          maximum: 5
+        review:
+          type: string
+          maxLength: 1000
+          nullable: true
+
+    UpdateRatingRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        ratingValue:
+          type: integer
+          minimum: 1
+          maximum: 5
+        review:
+          type: string
+          maxLength: 1000
+          nullable: true
+
+    Bookmark:
+      type: object
+      required: [bookmarkId, userId, songId, createdAt]
+      properties:
+        bookmarkId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        songId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        song:
+          $ref: '#/components/schemas/Song'
+
+    CreateBookmarkRequest:
+      type: object
+      additionalProperties: false
+      required: [songId]
+      properties:
+        songId:
+          type: string
+          format: uuid
+
+    UpdateBookmarkRequest:
+      type: object
+      additionalProperties: false
+      required: [songId]
+      properties:
+        songId:
+          type: string
+          format: uuid
+
+    Friend:
+      type: object
+      required: [friendId, userId, friendUserId, createdAt]
+      properties:
+        friendId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        friendUserId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        friendProfile:
+          $ref: '#/components/schemas/Profile'
+
+    CreateFriendRequest:
+      type: object
+      additionalProperties: false
+      required: [friendUserId]
+      properties:
+        friendUserId:
+          type: string
+          format: uuid
+
+    UpdateFriendRequest:
+      type: object
+      additionalProperties: false
+      required: [friendUserId]
+      properties:
+        friendUserId:
+          type: string
+          format: uuid
+
+    SearchEntry:
+      type: object
+      required: [searchId, userId, query, searchedAt]
+      properties:
+        searchId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        query:
+          type: string
+          minLength: 1
+          maxLength: 255
+        searchedAt:
+          type: string
+          format: date-time
+
+    CreateSearchRequest:
+      type: object
+      additionalProperties: false
+      required: [query]
+      properties:
+        query:
+          type: string
+          minLength: 1
+          maxLength: 255
+
+    UpdateSearchRequest:
+      type: object
+      additionalProperties: false
+      required: [query]
+      properties:
+        query:
+          type: string
+          minLength: 1
+          maxLength: 255
+
+    OtpStartRequest:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
+    OtpStartResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          example: OTP sent if the email is eligible.
+
+    OtpVerifyRequest:
+      type: object
+      additionalProperties: false
+      required: [email, token]
+      properties:
+        email:
+          type: string
+          format: email
+        token:
+          type: string
+          minLength: 4
+          maxLength: 12
+
+    AuthSession:
+      type: object
+      required: [accessToken, tokenType, expiresIn, user]
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+          minimum: 1
+        refreshToken:
+          type: string
+          nullable: true
+        user:
+          $ref: '#/components/schemas/Profile'
+
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: ok
+
+paths:
+  /health:
+    get:
+      tags: [Auth]
+      summary: Health check
+      operationId: getHealth
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /auth/otp/start:
+    post:
+      tags: [Auth]
+      summary: Start OTP sign-in
+      description: Sends a one-time passcode to the provided email address.
+      operationId: startOtp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtpStartRequest'
+      responses:
+        '200':
+          description: OTP initiation response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OtpStartResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/otp/verify:
+    post:
+      tags: [Auth]
+      summary: Verify OTP and create session
+      operationId: verifyOtp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtpVerifyRequest'
+      responses:
+        '200':
+          description: Authenticated session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+        '400':
+          description: Invalid token or request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /profiles/me:
+    get:
+      tags: [Profiles]
+      summary: Get the authenticated user's profile
+      operationId: getMyProfile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Authenticated user's profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      tags: [Profiles]
+      summary: Update the authenticated user's profile
+      operationId: updateMyProfile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '400':
+          description: Invalid payload or duplicate username
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Profiles]
+      summary: Delete the authenticated user's profile
+      description: |
+        Deletes the user's profile row. Depending on your auth/account lifecycle,
+        you may also want a separate endpoint to disable or delete the auth user.
+      operationId: deleteMyProfile
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Profile deleted
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /profiles/{userId}:
+    get:
+      tags: [Profiles]
+      summary: Get a public profile by user ID
+      operationId: getProfileById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Profile not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /songs:
+    get:
+      tags: [Songs]
+      summary: List songs
+      operationId: listSongs
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: Search term matched against title and artist.
+          schema:
+            type: string
+        - name: genre
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: artist
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: releaseYear
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Paginated song list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Song'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+    post:
+      tags: [Songs]
+      summary: Create a song
+      description: Create a song. Requires authentication.
+      operationId: createSong
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSongRequest'
+      responses:
+        '201':
+          description: Song created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Song'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /songs/{songId}:
+    get:
+      tags: [Songs]
+      summary: Get a song by ID
+      operationId: getSongById
+      parameters:
+        - $ref: '#/components/parameters/SongId'
+      responses:
+        '200':
+          description: Song
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Song'
+        '404':
+          description: Song not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      tags: [Songs]
+      summary: Update a song
+      operationId: updateSong
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SongId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSongRequest'
+      responses:
+        '200':
+          description: Updated song
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Song'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Song not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Songs]
+      summary: Delete a song
+      operationId: deleteSong
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SongId'
+      responses:
+        '204':
+          description: Song deleted
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Song not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /ratings:
+    get:
+      tags: [Ratings]
+      summary: List ratings visible to the caller
+      description: |
+        Returns ratings for the authenticated user by default. Optional filters
+        may support discovery and social views, depending on authorization rules.
+      operationId: listRatings
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: songId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: friendOnly
+          in: query
+          required: false
+          description: If true, return ratings authored by the caller's friends.
+          schema:
+            type: boolean
+            default: false
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Paginated ratings
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Rating'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags: [Ratings]
+      summary: Create a rating for the authenticated user
+      operationId: createRating
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRatingRequest'
+      responses:
+        '201':
+          description: Rating created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rating'
+        '400':
+          description: Invalid payload, duplicate rating, or rating out of range
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Song not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /ratings/{ratingId}:
+    get:
+      tags: [Ratings]
+      summary: Get a rating by ID
+      operationId: getRatingById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RatingId'
+      responses:
+        '200':
+          description: Rating
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rating'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Rating not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      tags: [Ratings]
+      summary: Update a rating owned by the authenticated user
+      operationId: updateRating
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RatingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRatingRequest'
+      responses:
+        '200':
+          description: Updated rating
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rating'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Caller does not own the rating
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Rating not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Ratings]
+      summary: Delete a rating owned by the authenticated user
+      operationId: deleteRating
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RatingId'
+      responses:
+        '204':
+          description: Rating deleted
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Caller does not own the rating
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Rating not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /bookmarks:
+    get:
+      tags: [Bookmarks]
+      summary: List bookmarks for the authenticated user
+      operationId: listBookmarks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: songId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Paginated bookmarks
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Bookmark'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags: [Bookmarks]
+      summary: Create a bookmark for the authenticated user
+      operationId: createBookmark
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookmarkRequest'
+      responses:
+        '201':
+          description: Bookmark created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bookmark'
+        '400':
+          description: Invalid payload or duplicate bookmark
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Song not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /bookmarks/{bookmarkId}:
+    get:
+      tags: [Bookmarks]
+      summary: Get a bookmark by ID
+      operationId: getBookmarkById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BookmarkId'
+      responses:
+        '200':
+          description: Bookmark
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bookmark'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Bookmark not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      tags: [Bookmarks]
+      summary: Update a bookmark owned by the authenticated user
+      description: |
+        This supports the same mutation pattern as your database test queries,
+        where a bookmark can be repointed to a different song.
+      operationId: updateBookmark
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BookmarkId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBookmarkRequest'
+      responses:
+        '200':
+          description: Updated bookmark
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bookmark'
+        '400':
+          description: Invalid payload or duplicate bookmark
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Caller does not own the bookmark
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Bookmark or song not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Bookmarks]
+      summary: Delete a bookmark owned by the authenticated user
+      operationId: deleteBookmark
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BookmarkId'
+      responses:
+        '204':
+          description: Bookmark deleted
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Caller does not own the bookmark
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Bookmark not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /friends:
+    get:
+      tags: [Friends]
+      summary: List friendships for the authenticated user
+      operationId: listFriends
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: direction
+          in: query
+          required: false
+          description: outgoing, incoming, or all
+          schema:
+            type: string
+            enum: [outgoing, incoming, all]
+            default: all
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Paginated friend list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Friend'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags: [Friends]
+      summary: Create a friendship row for the authenticated user
+      operationId: createFriend
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFriendRequest'
+      responses:
+        '201':
+          description: Friendship created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Friend'
+        '400':
+          description: Invalid payload, duplicate friendship, or self-friendship
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Friend profile not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /friends/{friendId}:
+    get:
+      tags: [Friends]
+      summary: Get a friendship row by ID
+      operationId: getFriendById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/FriendId'
+      responses:
+        '200':
+          description: Friendship
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Friend'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Friendship not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      tags: [Friends]
+      summary: Update a friendship row owned by the authenticated user
+      operationId: updateFriend
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/FriendId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFriendRequest'
+      responses:
+        '200':
+          description: Updated friendship
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Friend'
+        '400':
+          description: Invalid payload, duplicate friendship, or self-friendship
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Caller does not own the friendship row
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Friendship or friend profile not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Friends]
+      summary: Delete a friendship row owned by the authenticated user
+      operationId: deleteFriend
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/FriendId'
+      responses:
+        '204':
+          description: Friendship deleted
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Caller does not own the friendship row
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Friendship not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /search:
+    get:
+      tags: [Search]
+      summary: List search history for the authenticated user
+      operationId: listSearchHistory
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: Filter saved queries by substring.
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Paginated search history
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SearchEntry'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags: [Search]
+      summary: Create a search history entry for the authenticated user
+      operationId: createSearchEntry
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSearchRequest'
+      responses:
+        '201':
+          description: Search history entry created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchEntry'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /search/{searchId}:
+    get:
+      tags: [Search]
+      summary: Get a search history entry by ID
+      operationId: getSearchEntryById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SearchId'
+      responses:
+        '200':
+          description: Search history entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchEntry'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Search history entry not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      tags: [Search]
+      summary: Update a search history entry owned by the authenticated user
+      operationId: updateSearchEntry
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SearchId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSearchRequest'
+      responses:
+        '200':
+          description: Updated search history entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchEntry'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Caller does not own the search history entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Search history entry not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Search]
+      summary: Delete a search history entry owned by the authenticated user
+      operationId: deleteSearchEntry
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SearchId'
+      responses:
+        '204':
+          description: Search history entry deleted
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Caller does not own the search history entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Search history entry not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

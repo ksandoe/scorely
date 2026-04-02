@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import cors from 'cors'
 import express from 'express'
+import { v1Router } from './routes/v1.js'
 
 const app = express()
 
@@ -11,8 +12,10 @@ app.use(
   })
 )
 
-app.get('/health', (req, res) => {
-  res.json({ ok: true })
+app.use('/v1', v1Router)
+
+app.use((req, res) => {
+  res.status(404).json({ error: 'not_found', message: 'Route not found' })
 })
 
 const port = Number(process.env.PORT) || 8787
