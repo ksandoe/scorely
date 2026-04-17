@@ -1,0 +1,19 @@
+version: 1
+applications:
+  - appRoot: client
+    frontend:
+      buildPath: /client        # install & build from inside client/
+      phases:
+        preBuild:
+          commands:
+            - npm install
+        build:
+          commands:
+            - npm run build
+      artifacts:
+        baseDirectory: dist     # relative to buildPath, so resolves to client/dist
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/*
