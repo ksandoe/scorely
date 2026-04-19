@@ -2,15 +2,19 @@ import { useParams } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import { apiFetch, authHeaders } from '../lib/api'
 import { useAuth } from '../context/AuthContext.jsx'
+import Artwork from '../components/Artwork.jsx'
+import { isInTop5, toggleTop5 } from '../lib/top5'
 
 export default function SongDetailsPage() {
   const { songId } = useParams()
 
-  const { token } = useAuth()
+  const { token, profile } = useAuth()
+  const userId = profile?.id
 
   const [song, setSong] = useState(null)
   const [rating, setRating] = useState(null)
   const [bookmark, setBookmark] = useState(null)
+  const [top5Nonce, setTop5Nonce] = useState(0)
 
   const [ratingValue, setRatingValue] = useState('')
   const [review, setReview] = useState('')
@@ -141,11 +145,39 @@ export default function SongDetailsPage() {
 
   return (
     <main>
-      <h1>Song Details</h1>
+      <div className="card" style={{ background: 'var(--panel2)' }}>
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="row" style={{ alignItems: 'center' }}>
+            <Artwork src={song?.albumArt} alt={song?.title ? `${song.title} album art` : 'Album art'} size={84} rounded={16} />
+            <div>
+              <h1 style={{ marginBottom: 6 }}>{song?.title || 'Song'}</h1>
+              <div className="subtle">
+                {song?.artist || ''}
+                {song?.releaseYear ? ` • ${song.releaseYear}` : ''}
+                {song?.genre ? ` • ${song.genre}` : ''}
+              </div>
+              <div className="subtle" style={{ marginTop: 6 }}>
+                <span className="badge">{songId}</span>
+              </div>
+            </div>
+          </div>
 
-      <p>
-        Song ID: <code>{songId}</code>
-      </p>
+          <div style={{ textAlign: 'right' }}>
+            <button
+              type="button"
+              className={isInTop5(userId, songId) ? 'primary' : ''}
+              onClick={() => {
+                toggleTop5(userId, songId)
+                setTop5Nonce((n) => n + 1)
+              }}
+              disabled={busy}
+              title="Manually select your Top 5 songs"
+            >
+              {isInTop5(userId, songId) ? 'In My Top 5' : 'Add to My Top 5'}
+            </button>
+          </div>
+        </div>
+      </div>
 
       {busy ? <p>Loading…</p> : null}
       {error ? <p className="error">{error}</p> : null}

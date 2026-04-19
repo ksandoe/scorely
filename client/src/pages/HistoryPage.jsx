@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { apiFetch, authHeaders } from '../lib/api'
 import { useAuth } from '../context/AuthContext.jsx'
+import RatingPill from '../components/RatingPill.jsx'
+import SongCard from '../components/SongCard.jsx'
 
 export default function HistoryPage() {
   const { token } = useAuth()
@@ -101,24 +102,29 @@ export default function HistoryPage() {
 
             {displayed.length === 0 && !busy ? (
               <p>
-                No ratings yet. Start by browsing <Link to="/songs">songs</Link>.
+                No ratings yet. Start by browsing songs.
               </p>
             ) : null}
 
-            <div className="list">
-              {displayed.map((r) => (
-                <div key={r.ratingId} className="listItem">
-                  <div>
-                    <Link to={`/songs/${r.songId}`}>{r.song?.title || r.songId}</Link>
-                  </div>
-                  <small>
-                    {r.song?.artist ? `${r.song.artist} • ` : ''}
-                    <span className="badge">{r.ratingValue} / 5</span>
-                    {r.createdAt ? ` • ${new Date(r.createdAt).toLocaleString()}` : ''}
-                  </small>
-                  {r.review ? <small>{r.review}</small> : null}
-                </div>
-              ))}
+            <div className="grid">
+              {displayed
+                .filter((r) => r.song)
+                .map((r) => (
+                  <SongCard
+                    key={r.ratingId}
+                    song={r.song}
+                    to={`/songs/${r.songId}`}
+                    rightSlot={<RatingPill value={r.ratingValue} />}
+                    footerSlot={
+                      <>
+                        {r.createdAt ? (
+                          <div className="subtle">Rated on {new Date(r.createdAt).toLocaleString()}</div>
+                        ) : null}
+                        {r.review ? <div style={{ marginTop: 6 }}>{r.review}</div> : null}
+                      </>
+                    }
+                  />
+                ))}
             </div>
           </section>
         </>

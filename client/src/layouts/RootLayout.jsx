@@ -4,22 +4,20 @@ import PageHeader from '../components/PageHeader.jsx'
 
 export default function RootLayout() {
   return (
-    <div className="container">
-      <header className="card">
-        <PageHeader />
+    <>
+      <header className="topbar">
+        <div className="topbarInner">
+          <PageHeader />
+          <div style={{ height: 10 }} />
+          <Nav />
+        </div>
       </header>
 
-      <div style={{ height: 12 }} />
-
-      <header className="card">
-        <Nav />
-      </header>
-
-      <div style={{ height: 12 }} />
-
-      <div className="card">
-        <Outlet />
+      <div className="container">
+        <div className="stack">
+          <Outlet />
+        </div>
       </div>
-    </div>
+    </>
   )
 }

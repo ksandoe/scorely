@@ -1,14 +1,20 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useSearchParams } from 'react-router-dom'
 import { apiFetch } from '../lib/api'
+import { useAuth } from '../context/AuthContext.jsx'
+import { isInTop5, toggleTop5 } from '../lib/top5'
+import SongCard from '../components/SongCard.jsx'
 
 export default function SongsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const { profile } = useAuth()
+  const userId = profile?.id
+
   const [q, setQ] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [songs, setSongs] = useState([])
+  const [top5Nonce, setTop5Nonce] = useState(0)
 
   async function load() {
     setBusy(true)
@@ -75,17 +81,30 @@ export default function SongsPage() {
         <h2>Results</h2>
         {busy ? <p>Loading…</p> : null}
 
-        <div className="list">
-          {songs.map((s) => (
-            <div key={s.songId} className="listItem">
-              <div>
-                <Link to={`/songs/${s.songId}`}>{s.title}</Link>
-              </div>
-              <small>
-                {s.artist} {s.genre ? `• ${s.genre}` : ''} {s.releaseYear ? `• ${s.releaseYear}` : ''}
-              </small>
-            </div>
-          ))}
+        <div className="grid">
+          {songs.map((s) => {
+            const inTop5 = isInTop5(userId, s.songId)
+            return (
+              <SongCard
+                key={s.songId}
+                song={s}
+                rightSlot={
+                  <button
+                    type="button"
+                    className={inTop5 ? 'primary' : ''}
+                    onClick={() => {
+                      toggleTop5(userId, s.songId)
+                      setTop5Nonce((n) => n + 1)
+                    }}
+                    disabled={busy}
+                    aria-label={inTop5 ? 'Remove from Top 5' : 'Add to Top 5'}
+                  >
+                    {inTop5 ? 'Top 5' : '+ Top 5'}
+                  </button>
+                }
+              />
+            )
+          })}
         </div>
       </section>
     </main>

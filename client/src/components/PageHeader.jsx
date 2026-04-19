@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { getApiBaseUrl } from '../lib/api'
 
 export default function PageHeader() {
   const { profile, token, logout, status } = useAuth()
@@ -7,14 +8,12 @@ export default function PageHeader() {
   return (
     <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
       <div>
-        <div style={{ fontWeight: 700 }}>
-          <Link to="/" style={{ textDecoration: 'none' }}>
+        <div className="brand">
+          <Link to="/" style={{ textDecoration: 'none', color: 'var(--text)' }}>
             Scorely
           </Link>
         </div>
-        <small>
-          API: <code>{import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/v1'}</code>
-        </small>
+        <small className="subtle">API: {getApiBaseUrl() || 'not configured'}</small>
       </div>
 
       <div style={{ textAlign: 'right' }}>
@@ -22,7 +21,7 @@ export default function PageHeader() {
         {token && profile ? (
           <div>
             <div>
-              <span className="badge">@{profile.username}</span>
+              <span className="pill">@{profile.username}</span>
             </div>
             <button type="button" className="danger" onClick={logout} style={{ marginTop: 6 }}>
               Logout

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiFetch, authHeaders } from '../lib/api'
 import { useAuth } from '../context/AuthContext.jsx'
+import RatingPill from '../components/RatingPill.jsx'
+import SongCard from '../components/SongCard.jsx'
 
 export default function FriendsPage() {
   const { token } = useAuth()
@@ -113,19 +115,26 @@ export default function FriendsPage() {
             <p>
               Backed by <code>GET /ratings?friendOnly=true</code>.
             </p>
-            <div className="list">
-              {feed.map((r) => (
-                <div key={r.ratingId} className="listItem">
-                  <div>
-                    <Link to={`/songs/${r.songId}`}>{r.song?.title || r.songId}</Link>
-                  </div>
-                  <small>
-                    {r.profile?.username ? `@${r.profile.username} • ` : ''}
-                    <span className="badge">{r.ratingValue} / 5</span>
-                  </small>
-                  {r.review ? <small>{r.review}</small> : null}
-                </div>
-              ))}
+            <div className="grid">
+              {feed
+                .filter((r) => r.song)
+                .map((r) => (
+                  <SongCard
+                    key={r.ratingId}
+                    song={r.song}
+                    to={`/songs/${r.songId}`}
+                    rightSlot={<RatingPill value={r.ratingValue} />}
+                    footerSlot={
+                      <>
+                        <div className="subtle">
+                          {r.profile?.username ? `@${r.profile.username}` : ''}
+                          {r.createdAt ? ` • ${new Date(r.createdAt).toLocaleDateString()}` : ''}
+                        </div>
+                        {r.review ? <div style={{ marginTop: 6 }}>{r.review}</div> : null}
+                      </>
+                    }
+                  />
+                ))}
             </div>
           </section>
         </>
