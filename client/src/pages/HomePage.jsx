@@ -20,7 +20,7 @@ export default function HomePage() {
     async function load() {
       setError('')
       try {
-        const h = await apiFetch('/health')
+        const h = import.meta.env.DEV ? await apiFetch('/health') : null
         const s = await apiFetch('/songs?page=1&pageSize=5')
 
         let top5Details = []
@@ -64,12 +64,14 @@ export default function HomePage() {
 
       {error ? <p className="error">{error}</p> : null}
 
-      <section>
-        <h2>Status</h2>
-        <p>
-          API health: <span className="badge">{health?.status || 'unknown'}</span>
-        </p>
-      </section>
+      {import.meta.env.DEV ? (
+        <section>
+          <h2>Status</h2>
+          <p>
+            API health: <span className="badge">{health?.status || 'unknown'}</span>
+          </p>
+        </section>
+      ) : null}
 
       <section>
         <h2>My Top 5</h2>

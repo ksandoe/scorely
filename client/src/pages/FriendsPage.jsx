@@ -79,8 +79,8 @@ export default function FriendsPage() {
           <section>
             <h2>Add friend</h2>
             <label>
-              Friend user ID (UUID)
-              <input value={friendUserId} onChange={(e) => setFriendUserId(e.target.value)} placeholder="UUID" />
+              Friend ID
+              <input value={friendUserId} onChange={(e) => setFriendUserId(e.target.value)} placeholder="Paste friend ID" />
             </label>
             <div className="row">
               <button type="button" className="primary" onClick={addFriend} disabled={busy || !friendUserId}>
@@ -99,9 +99,10 @@ export default function FriendsPage() {
             <div className="list">
               {friends.map((f) => (
                 <div key={f.friendId} className="listItem">
-                  <small>
-                    <Link to={`/profiles/${f.friendUserId}`}>View profile (route scaffold)</Link>
-                  </small>
+                  <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="subtle">{f.friendProfile?.username ? `@${f.friendProfile.username}` : 'Friend'}</div>
+                    <Link to={`/profiles/${f.friendUserId}`}>View profile</Link>
+                  </div>
                 </div>
               ))}
             </div>
@@ -109,9 +110,6 @@ export default function FriendsPage() {
 
           <section>
             <h2>Friends' ratings feed</h2>
-            <p>
-              Backed by <code>GET /ratings?friendOnly=true</code>.
-            </p>
             <div className="grid">
               {feed
                 .filter((r) => r.song)
