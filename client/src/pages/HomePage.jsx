@@ -2,17 +2,17 @@ import { useEffect, useState } from 'react'
 import { apiFetch } from '../lib/api'
 import { useAuth } from '../context/AuthContext.jsx'
 import { getTop5, moveTop5, setTop5, toggleTop5 } from '../lib/top5'
+import { fetchMyTop5, updateMyTop5 } from '../lib/top5Remote'
 import SongCard from '../components/SongCard.jsx'
 
 export default function HomePage() {
-  const { profile } = useAuth()
+  const { profile, token } = useAuth()
   const userId = profile?.id
 
   const [health, setHealth] = useState(null)
   const [songs, setSongs] = useState([])
   const [top5Songs, setTop5Songs] = useState([])
   const [error, setError] = useState('')
-  const [top5Nonce, setTop5Nonce] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -23,21 +23,28 @@ export default function HomePage() {
         const h = await apiFetch('/health')
         const s = await apiFetch('/songs?page=1&pageSize=5')
 
-        const top5Ids = getTop5(userId)
-        const top5Details = await Promise.all(
-          top5Ids.map(async (id) => {
-            try {
-              return await apiFetch(`/songs/${id}`)
-            } catch {
-              return null
-            }
-          })
-        )
+        let top5Details = []
+        if (token && userId) {
+          const entries = await fetchMyTop5(token, userId)
+          top5Details = (entries || []).map((e) => e.song).filter(Boolean)
+        } else {
+          const top5Ids = getTop5(userId)
+          top5Details = await Promise.all(
+            top5Ids.map(async (id) => {
+              try {
+                return await apiFetch(`/songs/${id}`)
+              } catch {
+                return null
+              }
+            })
+          )
+          top5Details = top5Details.filter(Boolean)
+        }
 
         if (!cancelled) {
           setHealth(h)
           setSongs(s.data || [])
-          setTop5Songs(top5Details.filter(Boolean))
+          setTop5Songs(top5Details)
         }
       } catch (e) {
         if (!cancelled) setError(e.message)
@@ -80,8 +87,8 @@ export default function HomePage() {
                   <button
                     type="button"
                     onClick={() => {
+                      if (token) return
                       moveTop5(userId, idx, -1)
-                      setTop5Nonce((n) => n + 1)
                     }}
                     disabled={idx === 0}
                     title="Move up"
@@ -91,8 +98,8 @@ export default function HomePage() {
                   <button
                     type="button"
                     onClick={() => {
+                      if (token) return
                       moveTop5(userId, idx, 1)
-                      setTop5Nonce((n) => n + 1)
                     }}
                     disabled={idx === top5Songs.length - 1}
                     title="Move down"
@@ -102,9 +109,25 @@ export default function HomePage() {
                   <button
                     type="button"
                     className="danger"
-                    onClick={() => {
-                      toggleTop5(userId, s.songId)
-                      setTop5Nonce((n) => n + 1)
+                    onClick={async () => {
+                      if (token && userId) {
+                        const nextIds = top5Songs.filter((x) => x.songId !== s.songId).map((x) => x.songId)
+                        const entries = await updateMyTop5(token, nextIds)
+                        setTop5Songs((entries || []).map((e) => e.song).filter(Boolean))
+                      } else {
+                        toggleTop5(userId, s.songId)
+                        const next = getTop5(userId)
+                        const refreshed = await Promise.all(
+                          next.map(async (id) => {
+                            try {
+                              return await apiFetch(`/songs/${id}`)
+                            } catch {
+                              return null
+                            }
+                          })
+                        )
+                        setTop5Songs(refreshed.filter(Boolean))
+                      }
                     }}
                     title="Remove"
                   >
@@ -115,19 +138,6 @@ export default function HomePage() {
             />
           ))}
         </div>
-
-        {top5Songs.some((s) => !s) ? (
-          <button
-            type="button"
-            onClick={() => {
-              const cleaned = getTop5(userId).filter(Boolean)
-              setTop5(userId, cleaned)
-              setTop5Nonce((n) => n + 1)
-            }}
-          >
-            Clean up Top 5
-          </button>
-        ) : null}
       </section>
 
       <section>

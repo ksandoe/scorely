@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { apiFetch, authHeaders } from '../lib/api'
 import { useAuth } from '../context/AuthContext.jsx'
+import { fetchPublicTop5 } from '../lib/top5Remote'
+import SongCard from '../components/SongCard.jsx'
+import RatingPill from '../components/RatingPill.jsx'
 
 export default function ProfilePage() {
   const { userId } = useParams()
@@ -11,6 +14,7 @@ export default function ProfilePage() {
   const [error, setError] = useState('')
   const [profile, setProfile] = useState(null)
   const [ratings, setRatings] = useState([])
+  const [top5, setTop5] = useState([])
 
   useEffect(() => {
     let cancelled = false
@@ -25,12 +29,15 @@ export default function ProfilePage() {
           headers: authHeaders(token)
         })
 
+        const t = await fetchPublicTop5(userId)
+
         const r = await apiFetch(`/ratings?userId=${encodeURIComponent(userId)}&page=1&pageSize=50`, {
           headers: authHeaders(token)
         })
 
         if (!cancelled) {
           setProfile(p)
+          setTop5(t || [])
           setRatings(r.data || [])
         }
       } catch (e) {
@@ -59,9 +66,6 @@ export default function ProfilePage() {
   return (
     <main>
       <h1>Profile</h1>
-      <p>
-        User ID: <code>{userId}</code>
-      </p>
 
       {busy ? <p>Loading…</p> : null}
       {error ? <p className="error">{error}</p> : null}
@@ -79,20 +83,39 @@ export default function ProfilePage() {
       </section>
 
       <section>
+        <h2>Top 5</h2>
+        <p className="subtle">Manually curated favorites.</p>
+        {top5.length === 0 ? <p>No Top 5 selected yet.</p> : null}
+        <div className="grid">
+          {top5
+            .filter((e) => e.song)
+            .sort((a, b) => (a.position || 0) - (b.position || 0))
+            .map((e) => (
+              <SongCard key={e.top5Id} song={e.song} />
+            ))}
+        </div>
+      </section>
+
+      <section>
         <h2>Ratings</h2>
-        <div className="list">
-          {ratings.map((r) => (
-            <div key={r.ratingId} className="listItem">
-              <div>
-                <Link to={`/songs/${r.songId}`}>{r.song?.title || r.songId}</Link>
-              </div>
-              <small>
-                {r.song?.artist ? `${r.song.artist} • ` : ''}
-                <span className="badge">{r.ratingValue} / 5</span>
-              </small>
-              {r.review ? <small>{r.review}</small> : null}
-            </div>
-          ))}
+        <div className="grid">
+          {ratings
+            .filter((r) => r.song)
+            .map((r) => (
+              <SongCard
+                key={r.ratingId}
+                song={r.song}
+                to={`/songs/${r.songId}`}
+                rightSlot={<RatingPill value={r.ratingValue} />}
+                footerSlot={
+                  r.review ? (
+                    <div style={{ marginTop: 6 }}>
+                      <span className="subtle">Review:</span> {r.review}
+                    </div>
+                  ) : null
+                }
+              />
+            ))}
         </div>
       </section>
     </main>

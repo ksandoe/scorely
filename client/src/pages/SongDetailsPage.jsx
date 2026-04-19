@@ -4,6 +4,7 @@ import { apiFetch, authHeaders } from '../lib/api'
 import { useAuth } from '../context/AuthContext.jsx'
 import Artwork from '../components/Artwork.jsx'
 import { isInTop5, toggleTop5 } from '../lib/top5'
+import { fetchMyTop5, updateMyTop5 } from '../lib/top5Remote'
 
 export default function SongDetailsPage() {
   const { songId } = useParams()
@@ -14,7 +15,7 @@ export default function SongDetailsPage() {
   const [song, setSong] = useState(null)
   const [rating, setRating] = useState(null)
   const [bookmark, setBookmark] = useState(null)
-  const [top5Nonce, setTop5Nonce] = useState(0)
+  const [top5Ids, setTop5Ids] = useState([])
 
   const [ratingValue, setRatingValue] = useState('')
   const [review, setReview] = useState('')
@@ -69,6 +70,28 @@ export default function SongDetailsPage() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [songId, token])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadTop5() {
+      if (!token || !userId) {
+        setTop5Ids([])
+        return
+      }
+      try {
+        const entries = await fetchMyTop5(token, userId)
+        if (!cancelled) setTop5Ids((entries || []).map((e) => e.songId).filter(Boolean))
+      } catch {
+        if (!cancelled) setTop5Ids([])
+      }
+    }
+
+    loadTop5()
+    return () => {
+      cancelled = true
+    }
+  }, [token, userId])
 
   async function saveRating() {
     if (!token) return
@@ -156,24 +179,29 @@ export default function SongDetailsPage() {
                 {song?.releaseYear ? ` • ${song.releaseYear}` : ''}
                 {song?.genre ? ` • ${song.genre}` : ''}
               </div>
-              <div className="subtle" style={{ marginTop: 6 }}>
-                <span className="badge">{songId}</span>
-              </div>
             </div>
           </div>
 
           <div style={{ textAlign: 'right' }}>
             <button
               type="button"
-              className={isInTop5(userId, songId) ? 'primary' : ''}
-              onClick={() => {
-                toggleTop5(userId, songId)
-                setTop5Nonce((n) => n + 1)
+              className={(token ? top5Ids.includes(songId) : isInTop5(userId, songId)) ? 'primary' : ''}
+              onClick={async () => {
+                if (token && userId) {
+                  const inTop5 = top5Ids.includes(songId)
+                  const next = inTop5
+                    ? top5Ids.filter((id) => id !== songId)
+                    : [...top5Ids, songId].slice(0, 5)
+                  const entries = await updateMyTop5(token, next)
+                  setTop5Ids((entries || []).map((e) => e.songId).filter(Boolean))
+                } else {
+                  toggleTop5(userId, songId)
+                }
               }}
               disabled={busy}
               title="Manually select your Top 5 songs"
             >
-              {isInTop5(userId, songId) ? 'In My Top 5' : 'Add to My Top 5'}
+              {(token ? top5Ids.includes(songId) : isInTop5(userId, songId)) ? 'In My Top 5' : 'Add to My Top 5'}
             </button>
           </div>
         </div>

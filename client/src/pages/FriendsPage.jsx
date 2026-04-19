@@ -99,9 +99,6 @@ export default function FriendsPage() {
             <div className="list">
               {friends.map((f) => (
                 <div key={f.friendId} className="listItem">
-                  <div>
-                    <span className="badge">{f.friendUserId}</span>
-                  </div>
                   <small>
                     <Link to={`/profiles/${f.friendUserId}`}>View profile (route scaffold)</Link>
                   </small>

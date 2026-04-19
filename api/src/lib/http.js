@@ -82,3 +82,15 @@ export function toSearchEntry(row) {
     searchedAt: row.searched_at
   }
 }
+
+export function toTop5Entry(row) {
+  if (!row) return null
+  return {
+    top5Id: row.top5_id,
+    userId: row.user_id,
+    songId: row.song_id,
+    position: row.position,
+    createdAt: row.created_at,
+    song: row.song ? toSong(row.song) : undefined
+  }
+}

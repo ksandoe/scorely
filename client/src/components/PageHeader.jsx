@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
-import { getApiBaseUrl } from '../lib/api'
 
 export default function PageHeader() {
   const { profile, token, logout, status } = useAuth()
@@ -13,7 +12,7 @@ export default function PageHeader() {
             Scorely
           </Link>
         </div>
-        <small className="subtle">API: {getApiBaseUrl() || 'not configured'}</small>
+        <small className="subtle">Music diary</small>
       </div>
 
       <div style={{ textAlign: 'right' }}>

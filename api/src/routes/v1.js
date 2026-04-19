@@ -8,7 +8,8 @@ import {
   toProfile,
   toRating,
   toSearchEntry,
-  toSong
+  toSong,
+  toTop5Entry
 } from '../lib/http.js'
 import { getSupabaseAdmin, getSupabaseAnon, getSupabaseForJwt } from '../lib/supabase.js'
 
@@ -137,6 +138,49 @@ v1Router.delete('/profiles/me', requireAuth, async (req, res) => {
   return res.status(204).send()
 })
 
+v1Router.put('/profiles/me/top5', requireAuth, async (req, res) => {
+  const { songIds } = req.body ?? {}
+  if (!Array.isArray(songIds)) {
+    return sendError(res, 400, 'validation_error', 'songIds must be an array')
+  }
+
+  const ids = songIds
+    .map((x) => (typeof x === 'string' ? x : null))
+    .filter(Boolean)
+    .slice(0, 5)
+
+  const unique = [...new Set(ids)]
+  if (unique.length !== ids.length) {
+    return sendError(res, 400, 'validation_error', 'songIds must be unique')
+  }
+
+  const supabase = getSupabaseAdmin()
+
+  const { error: deleteError } = await supabase.from('top5_songs').delete().eq('user_id', req.auth.userId)
+  if (deleteError) return sendError(res, 400, 'unknown_error', deleteError.message)
+
+  if (ids.length > 0) {
+    const rows = ids.map((songId, idx) => ({
+      user_id: req.auth.userId,
+      song_id: songId,
+      position: idx + 1
+    }))
+
+    const { error: insertError } = await supabase.from('top5_songs').insert(rows)
+    if (insertError) return sendError(res, 400, 'validation_error', insertError.message)
+  }
+
+  const { data, error } = await supabase
+    .from('top5_songs')
+    .select('*, song:songs(*)')
+    .eq('user_id', req.auth.userId)
+    .order('position', { ascending: true })
+
+  if (error) return sendError(res, 400, 'unknown_error', error.message)
+
+  return res.json({ data: (data ?? []).map(toTop5Entry) })
+})
+
 v1Router.get('/profiles/:userId', requireAuth, async (req, res) => {
   const { userId } = req.params
   const supabase = getSupabaseAdmin()
@@ -144,6 +188,20 @@ v1Router.get('/profiles/:userId', requireAuth, async (req, res) => {
   if (error) return sendError(res, 400, 'unknown_error', error.message)
   if (!data) return sendError(res, 404, 'not_found', 'Profile not found')
   return res.json(toProfile(data))
+})
+
+v1Router.get('/profiles/:userId/top5', async (req, res) => {
+  const { userId } = req.params
+  const supabase = getSupabaseAnon()
+
+  const { data, error } = await supabase
+    .from('top5_songs')
+    .select('*, song:songs(*)')
+    .eq('user_id', userId)
+    .order('position', { ascending: true })
+
+  if (error) return sendError(res, 400, 'unknown_error', error.message)
+  return res.json({ data: (data ?? []).map(toTop5Entry) })
 })
 
 // Songs

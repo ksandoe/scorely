@@ -3,18 +3,19 @@ import { useSearchParams } from 'react-router-dom'
 import { apiFetch } from '../lib/api'
 import { useAuth } from '../context/AuthContext.jsx'
 import { isInTop5, toggleTop5 } from '../lib/top5'
+import { fetchMyTop5, updateMyTop5 } from '../lib/top5Remote'
 import SongCard from '../components/SongCard.jsx'
 
 export default function SongsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const { profile } = useAuth()
+  const { profile, token } = useAuth()
   const userId = profile?.id
 
   const [q, setQ] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [songs, setSongs] = useState([])
-  const [top5Nonce, setTop5Nonce] = useState(0)
+  const [top5Ids, setTop5Ids] = useState([])
 
   async function load() {
     setBusy(true)
@@ -44,6 +45,30 @@ export default function SongsPage() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadTop5() {
+      if (!token || !userId) {
+        setTop5Ids([])
+        return
+      }
+      try {
+        const entries = await fetchMyTop5(token, userId)
+        if (!cancelled) {
+          setTop5Ids((entries || []).map((e) => e.songId).filter(Boolean))
+        }
+      } catch {
+        if (!cancelled) setTop5Ids([])
+      }
+    }
+
+    loadTop5()
+    return () => {
+      cancelled = true
+    }
+  }, [token, userId])
 
   return (
     <main>
@@ -83,7 +108,7 @@ export default function SongsPage() {
 
         <div className="grid">
           {songs.map((s) => {
-            const inTop5 = isInTop5(userId, s.songId)
+            const inTop5 = token ? top5Ids.includes(s.songId) : isInTop5(userId, s.songId)
             return (
               <SongCard
                 key={s.songId}
@@ -92,9 +117,17 @@ export default function SongsPage() {
                   <button
                     type="button"
                     className={inTop5 ? 'primary' : ''}
-                    onClick={() => {
-                      toggleTop5(userId, s.songId)
-                      setTop5Nonce((n) => n + 1)
+                    onClick={async () => {
+                      if (token && userId) {
+                        const next = inTop5
+                          ? top5Ids.filter((id) => id !== s.songId)
+                          : [...top5Ids, s.songId].slice(0, 5)
+
+                        const entries = await updateMyTop5(token, next)
+                        setTop5Ids((entries || []).map((e) => e.songId).filter(Boolean))
+                      } else {
+                        toggleTop5(userId, s.songId)
+                      }
                     }}
                     disabled={busy}
                     aria-label={inTop5 ? 'Remove from Top 5' : 'Add to Top 5'}
