@@ -145,7 +145,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "serverless-framework-deployments-us-east-1-c8e82b45-0dd7",
-                "S3Key": "serverless/scorely-api/dev/1776554795438-2026-04-18T23:26:35.438Z/scorely-api.zip"
+                "S3Key": "serverless/scorely-api/dev/1776559155073-2026-04-19T00:39:15.073Z/scorely-api.zip"
               },
               "Handler": "src/lambda.handler",
               "Runtime": "nodejs20.x",
@@ -392,7 +392,7 @@
         "artifactsS3KeyDirname": "serverless/scorely-api/dev/code-artifacts",
         "deploymentBucket": "serverless-framework-deployments-us-east-1-c8e82b45-0dd7",
         "artifact": "C:\\Users\\ksand\\OneDrive\\Documents\\coding\\scorely\\api\\.serverless\\scorely-api.zip",
-        "artifactDirectoryName": "serverless/scorely-api/dev/1776554795438-2026-04-18T23:26:35.438Z"
+        "artifactDirectoryName": "serverless/scorely-api/dev/1776559155073-2026-04-19T00:39:15.073Z"
       }
     },
     "appId": null,
@@ -401,7 +401,7 @@
     "artifact": "C:\\Users\\ksand\\OneDrive\\Documents\\coding\\scorely\\api\\.serverless\\scorely-api.zip"
   },
   "package": {
-    "artifactDirectoryName": "serverless/scorely-api/dev/1776554795438-2026-04-18T23:26:35.438Z",
+    "artifactDirectoryName": "serverless/scorely-api/dev/1776559155073-2026-04-19T00:39:15.073Z",
     "artifact": "scorely-api.zip"
   }
 }

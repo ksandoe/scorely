@@ -1,10 +1,16 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/v1'
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV ? 'http://localhost:5000/v1' : null)
 
 export function getApiBaseUrl() {
-  return API_BASE_URL
+  return API_BASE_URL || ''
 }
 
 export async function apiFetch(path, options = {}) {
+  if (!API_BASE_URL) {
+    throw new Error('VITE_API_BASE_URL is not configured for this build')
+  }
+
   const url = `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
 
   const headers = new Headers(options.headers || {})
