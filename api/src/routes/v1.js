@@ -871,6 +871,16 @@ v1Router.post('/friends', requireAuth, async (req, res) => {
     return sendError(res, 400, 'validation_error', 'Cannot friend yourself')
   }
 
+  const { data: existing, error: existingError } = await supabase
+    .from('friends')
+    .select('*, friendProfile:profiles!friends_friend_user_id_fkey(*)')
+    .eq('user_id', req.auth.userId)
+    .eq('friend_user_id', friendProfile.id)
+    .maybeSingle()
+
+  if (existingError) return sendError(res, 400, 'unknown_error', existingError.message)
+  if (existing) return res.status(200).json(toFriend({ ...existing }))
+
   const { data, error } = await supabase
     .from('friends')
     .insert({ user_id: req.auth.userId, friend_user_id: friendProfile.id })

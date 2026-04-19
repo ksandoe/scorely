@@ -23,7 +23,7 @@ export default function FriendsPage() {
     setError('')
     setMessage('')
     try {
-      const list = await apiFetch('/friends?page=1&pageSize=100', {
+      const list = await apiFetch('/friends?direction=outgoing&page=1&pageSize=100', {
         headers: authHeaders(token)
       })
       setFriends(list.data || [])

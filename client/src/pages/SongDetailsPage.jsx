@@ -321,20 +321,34 @@ export default function SongDetailsPage() {
         {isSignedIn ? (
           <>
             <p>Rate from 1–5 stars.</p>
-            <div className="row">
-              <div style={{ flex: 1, minWidth: 160 }}>
-                <label>
-                  Rating
-                  <input
-                    type="number"
-                    min="1"
-                    max="5"
-                    value={effectiveRatingValue}
-                    onChange={(e) => setRatingValue(e.target.value)}
-                    placeholder="5"
-                  />
-                </label>
-              </div>
+            <div className="row" style={{ gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              {Array.from({ length: 5 }).map((_, i) => {
+                const value = i + 1
+                const active = Number(effectiveRatingValue || 0) >= value
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setRatingValue(String(value))}
+                    disabled={busy}
+                    aria-label={`Rate ${value} star${value === 1 ? '' : 's'}`}
+                    title={`Rate ${value} / 5`}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      padding: 0,
+                      fontSize: 26,
+                      lineHeight: 1,
+                      cursor: busy ? 'not-allowed' : 'pointer',
+                      color: active ? 'var(--gold)' : 'var(--muted)'
+                    }}
+                  >
+                    ★
+                  </button>
+                )
+              })}
+
+              {effectiveRatingValue ? <span className="subtle">{effectiveRatingValue} / 5</span> : null}
             </div>
             <button type="button" className="primary" onClick={saveRating} disabled={busy || !effectiveRatingValue}>
               {rating ? 'Update rating' : 'Save rating'}
