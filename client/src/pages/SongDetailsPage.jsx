@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { apiFetch, authHeaders } from '../lib/api'
 import { useAuth } from '../context/AuthContext.jsx'
 import Artwork from '../components/Artwork.jsx'
+import SongCard from '../components/SongCard.jsx'
 import { isInTop5, toggleTop5 } from '../lib/top5'
 import { fetchMyTop5, updateMyTop5 } from '../lib/top5Remote'
 
@@ -19,6 +20,9 @@ export default function SongDetailsPage() {
 
   const [ratingValue, setRatingValue] = useState('')
   const [review, setReview] = useState('')
+
+  const [publicRatings, setPublicRatings] = useState([])
+  const [myOutgoingFriends, setMyOutgoingFriends] = useState([])
 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -45,7 +49,15 @@ export default function SongDetailsPage() {
       const songData = await apiFetch(`/songs/${songId}`)
       setSong(songData)
 
+      const publicRatingsData = await apiFetch(`/songs/${songId}/ratings/public?page=1&pageSize=20`)
+      setPublicRatings(publicRatingsData.data || [])
+
       if (token) {
+        const outgoing = await apiFetch('/friends?direction=outgoing&page=1&pageSize=200', {
+          headers: authHeaders(token)
+        })
+        setMyOutgoingFriends(outgoing.data || [])
+
         const ratings = await apiFetch(`/ratings?songId=${encodeURIComponent(songId)}&page=1&pageSize=1`, {
           headers: authHeaders(token)
         })
@@ -58,6 +70,7 @@ export default function SongDetailsPage() {
       } else {
         setRating(null)
         setBookmark(null)
+        setMyOutgoingFriends([])
       }
     } catch (e) {
       setError(e.message)
@@ -166,6 +179,70 @@ export default function SongDetailsPage() {
     }
   }
 
+  async function logListen() {
+    if (!token) return
+    setBusy(true)
+    setError('')
+    setMessage('')
+    try {
+      await apiFetch('/listens', {
+        method: 'POST',
+        headers: authHeaders(token),
+        json: { songId }
+      })
+      setMessage('Logged a listen.')
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function followByUsername(username) {
+    if (!token) return
+    const normalized = String(username || '').trim().replace(/^@/, '')
+    if (!normalized) return
+    setBusy(true)
+    setError('')
+    setMessage('')
+    try {
+      await apiFetch('/friends', {
+        method: 'POST',
+        headers: authHeaders(token),
+        json: { friendUsername: normalized }
+      })
+
+      const outgoing = await apiFetch('/friends?direction=outgoing&page=1&pageSize=200', {
+        headers: authHeaders(token)
+      })
+      setMyOutgoingFriends(outgoing.data || [])
+      setMessage('Following.')
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function unfollow(friendId) {
+    if (!token || !friendId) return
+    setBusy(true)
+    setError('')
+    setMessage('')
+    try {
+      await apiFetch(`/friends/${friendId}`, {
+        method: 'DELETE',
+        headers: authHeaders(token)
+      })
+      setMyOutgoingFriends((prev) => (prev || []).filter((f) => f.friendId !== friendId))
+      setMessage('Unfollowed.')
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <main>
       <div className="card" style={{ background: 'var(--panel2)' }}>
@@ -222,6 +299,20 @@ export default function SongDetailsPage() {
           </div>
         ) : (
           <p>—</p>
+        )}
+      </section>
+
+      <section>
+        <h2>Log a listen</h2>
+        {isSignedIn ? (
+          <>
+            <p>Tap this when you listen to the song (adds to your History feed).</p>
+            <button type="button" className="primary" onClick={logListen} disabled={busy}>
+              Log listen
+            </button>
+          </>
+        ) : (
+          <p>Sign in to log listens.</p>
         )}
       </section>
 
@@ -296,6 +387,55 @@ export default function SongDetailsPage() {
         ) : (
           <p>Sign in to bookmark songs.</p>
         )}
+      </section>
+
+      <section>
+        <h2>Recent reviews</h2>
+        {publicRatings.filter((r) => r.profile && r.profile.username).length === 0 && !busy ? (
+          <p className="subtle">No reviews yet.</p>
+        ) : null}
+
+        <div className="grid">
+          {publicRatings
+            .filter((r) => r.profile)
+            .map((r) => {
+              const username = r.profile?.username
+              const existing = username
+                ? (myOutgoingFriends || []).find((f) => f.friendProfile?.username === username) || null
+                : null
+
+              return (
+                <SongCard
+                  key={r.ratingId}
+                  song={r.song}
+                  to={r.songId ? `/songs/${r.songId}` : undefined}
+                  rightSlot={<div className="row" style={{ alignItems: 'center' }}><div className="subtle">{username ? `@${username}` : ''}</div></div>}
+                  footerSlot={
+                    <>
+                      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="subtle">
+                          {r.ratingValue ? `${r.ratingValue} / 5` : ''}
+                          {r.createdAt ? ` • ${new Date(r.createdAt).toLocaleDateString()}` : ''}
+                        </div>
+                        {isSignedIn && username && username !== profile?.username ? (
+                          existing?.friendId ? (
+                            <button type="button" className="danger small" onClick={() => unfollow(existing.friendId)} disabled={busy}>
+                              Unfollow
+                            </button>
+                          ) : (
+                            <button type="button" className="primary small" onClick={() => followByUsername(username)} disabled={busy}>
+                              Follow
+                            </button>
+                          )
+                        ) : null}
+                      </div>
+                      {r.review ? <div style={{ marginTop: 6 }}>{r.review}</div> : null}
+                    </>
+                  }
+                />
+              )
+            })}
+        </div>
       </section>
     </main>
   )

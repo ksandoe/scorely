@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiFetch, authHeaders } from '../lib/api'
 import { useAuth } from '../context/AuthContext.jsx'
+import SongCard from '../components/SongCard.jsx'
 
 export default function BookmarksPage() {
   const { token } = useAuth()
@@ -74,20 +75,21 @@ export default function BookmarksPage() {
               </p>
             ) : null}
 
-            <div className="list">
-              {items.map((b) => (
-                <div key={b.bookmarkId} className="listItem">
-                  <div>
-                    <Link to={`/songs/${b.songId}`}>{b.song?.title || b.songId}</Link>
-                  </div>
-                  <small>{b.song?.artist || ''}</small>
-                  <div className="row">
-                    <button type="button" className="danger" onClick={() => remove(b.bookmarkId)} disabled={busy}>
-                      Remove
-                    </button>
-                  </div>
-                </div>
-              ))}
+            <div className="grid">
+              {items
+                .filter((b) => b.song)
+                .map((b) => (
+                  <SongCard
+                    key={b.bookmarkId}
+                    song={b.song}
+                    to={`/songs/${b.songId}`}
+                    rightSlot={
+                      <button type="button" className="danger small" onClick={() => remove(b.bookmarkId)} disabled={busy}>
+                        Remove
+                      </button>
+                    }
+                  />
+                ))}
             </div>
           </section>
         </>

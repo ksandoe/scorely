@@ -98,7 +98,7 @@
       "Properties": {
         "Code": {
           "S3Bucket": "serverless-framework-deployments-us-east-1-c8e82b45-0dd7",
-          "S3Key": "serverless/scorely-api/dev/1776564438967-2026-04-19T02:07:18.967Z/scorely-api.zip"
+          "S3Key": "serverless/scorely-api/dev/1776625808470-2026-04-19T19:10:08.470Z/scorely-api.zip"
         },
         "Handler": "src/lambda.handler",
         "Runtime": "nodejs20.x",
@@ -121,14 +121,14 @@
         "ApiLogGroup"
       ]
     },
-    "ApiLambdaVersionGhPEcc2wznmnDdt9NuKKf2vVsPysfMtd30mQXeJFkY": {
+    "ApiLambdaVersionSBFtvVlJqF29b2yR4w5DAQkBvmsYxiOOGtjJYxEPwoI": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
         "FunctionName": {
           "Ref": "ApiLambdaFunction"
         },
-        "CodeSha256": "54PITMDK3vpsGcrFA3FL6yYqAISIHIKLSGUb6p2c17Y="
+        "CodeSha256": "9x1cKIqIGB0cYMwovRmfAU+izPOuHdjTQHzpyDyVTqM="
       }
     },
     "HttpApi": {
@@ -256,7 +256,7 @@
     "ApiLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "ApiLambdaVersionGhPEcc2wznmnDdt9NuKKf2vVsPysfMtd30mQXeJFkY"
+        "Ref": "ApiLambdaVersionSBFtvVlJqF29b2yR4w5DAQkBvmsYxiOOGtjJYxEPwoI"
       },
       "Export": {
         "Name": "sls-scorely-api-dev-ApiLambdaFunctionQualifiedArn"

@@ -8,13 +8,16 @@ import RatingPill from '../components/RatingPill.jsx'
 
 export default function ProfilePage() {
   const { userId } = useParams()
-  const { token } = useAuth()
+  const { token, profile: me } = useAuth()
 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [profile, setProfile] = useState(null)
   const [ratings, setRatings] = useState([])
   const [top5, setTop5] = useState([])
+  const [followRow, setFollowRow] = useState(null)
+
+  const isMe = Boolean(me?.id) && me.id === userId
 
   useEffect(() => {
     let cancelled = false
@@ -35,10 +38,17 @@ export default function ProfilePage() {
           headers: authHeaders(token)
         })
 
+        const outgoing = await apiFetch('/friends?direction=outgoing&page=1&pageSize=200', {
+          headers: authHeaders(token)
+        })
+
+        const existing = (outgoing.data || []).find((f) => f.friendUserId === userId) || null
+
         if (!cancelled) {
           setProfile(p)
           setTop5(t || [])
           setRatings(r.data || [])
+          setFollowRow(existing)
         }
       } catch (e) {
         if (!cancelled) setError(e.message)
@@ -74,8 +84,46 @@ export default function ProfilePage() {
         <h2>Profile</h2>
         {profile ? (
           <div className="listItem">
-            <div style={{ fontWeight: 700 }}>@{profile.username}</div>
-            <small>{profile.createdAt ? `Joined ${new Date(profile.createdAt).toLocaleDateString()}` : null}</small>
+            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontWeight: 700 }}>@{profile.username}</div>
+                <small>{profile.createdAt ? `Joined ${new Date(profile.createdAt).toLocaleDateString()}` : null}</small>
+              </div>
+              {!isMe ? (
+                <button
+                  type="button"
+                  className={followRow ? 'danger' : 'primary'}
+                  disabled={busy}
+                  onClick={async () => {
+                    if (!token || !profile?.username) return
+                    setBusy(true)
+                    setError('')
+                    try {
+                      if (followRow?.friendId) {
+                        await apiFetch(`/friends/${followRow.friendId}`, {
+                          method: 'DELETE',
+                          headers: authHeaders(token)
+                        })
+                        setFollowRow(null)
+                      } else {
+                        const created = await apiFetch('/friends', {
+                          method: 'POST',
+                          headers: authHeaders(token),
+                          json: { friendUsername: profile.username }
+                        })
+                        setFollowRow(created)
+                      }
+                    } catch (e) {
+                      setError(e.message)
+                    } finally {
+                      setBusy(false)
+                    }
+                  }}
+                >
+                  {followRow ? 'Unfollow' : 'Follow'}
+                </button>
+              ) : null}
+            </div>
           </div>
         ) : (
           <p>—</p>

@@ -94,3 +94,14 @@ export function toTop5Entry(row) {
     song: row.song ? toSong(row.song) : undefined
   }
 }
+
+export function toListen(row) {
+  if (!row) return null
+  return {
+    listenId: row.listen_id,
+    userId: row.user_id,
+    songId: row.song_id,
+    listenedAt: row.listened_at,
+    song: row.song ? toSong(row.song) : undefined
+  }
+}

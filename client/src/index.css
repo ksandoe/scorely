@@ -1,14 +1,20 @@
 :root {
   color-scheme: dark;
   --bg: #0b0f17;
+  --bg2: #0a1323;
   --panel: #0f1625;
   --panel2: #121c2e;
+  --panel3: rgba(255, 255, 255, 0.04);
   --text: #e5e7eb;
   --muted: rgba(229, 231, 235, 0.72);
   --border: rgba(255, 255, 255, 0.10);
   --accent: #00c46a;
+  --accent2: #7c3aed;
+  --accentSoft: rgba(0, 196, 106, 0.14);
+  --glow: rgba(0, 196, 106, 0.18);
   --danger: #ef4444;
   --gold: #fbbf24;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
 * {
@@ -22,14 +28,28 @@ body {
 
 body {
   margin: 0;
-  background: var(--bg);
+  background:
+    radial-gradient(900px 500px at 20% -10%, rgba(0, 196, 106, 0.18), transparent 60%),
+    radial-gradient(700px 420px at 90% 0%, rgba(124, 58, 237, 0.16), transparent 55%),
+    linear-gradient(180deg, var(--bg2), var(--bg));
   color: var(--text);
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
   line-height: 1.45;
 }
 
+main {
+  display: grid;
+  gap: 16px;
+}
+
 a {
   color: var(--text);
+  text-decoration-color: rgba(0, 196, 106, 0.35);
+  text-underline-offset: 2px;
+}
+
+a:hover {
+  color: rgba(229, 231, 235, 0.95);
 }
 
 code {
@@ -39,7 +59,7 @@ code {
 .container {
   max-width: 1040px;
   margin: 0 auto;
-  padding: 16px;
+  padding: 18px 16px 28px;
 }
 
 .card {
@@ -47,6 +67,7 @@ code {
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 12px;
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
 }
 
 .stack {
@@ -59,7 +80,7 @@ code {
   top: 0;
   z-index: 10;
   backdrop-filter: blur(10px);
-  background: rgba(11, 15, 23, 0.72);
+  background: rgba(11, 15, 23, 0.66);
   border-bottom: 1px solid var(--border);
 }
 
@@ -69,9 +90,31 @@ code {
   padding: 12px 16px;
 }
 
+.topbarStack {
+  display: grid;
+  gap: 10px;
+}
+
 .brand {
   font-weight: 800;
   letter-spacing: 0.2px;
+}
+
+.brandLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--text);
+  font-size: 18px;
+}
+
+.brandMark {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.9), rgba(0, 196, 106, 0.95));
+  box-shadow: 0 0 0 4px rgba(0, 196, 106, 0.10);
 }
 
 .subtle {
@@ -103,33 +146,55 @@ nav ul {
   gap: 10px;
 }
 
+.navPills {
+  gap: 8px;
+}
+
 nav a {
   display: inline-block;
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 999px;
   text-decoration: none;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.035);
+  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+nav a:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.055);
 }
 
 nav a[aria-current='page'] {
   border-color: rgba(0, 196, 106, 0.55);
-  background: rgba(0, 196, 106, 0.10);
+  background:
+    radial-gradient(120px 48px at 20% 30%, rgba(0, 196, 106, 0.22), rgba(0, 196, 106, 0.10)),
+    rgba(0, 196, 106, 0.10);
 }
 
 h1 {
-  font-size: 24px;
+  font-size: 28px;
+  letter-spacing: -0.2px;
   margin: 0 0 12px;
 }
 
 h2 {
-  font-size: 16px;
-  margin: 0 0 10px;
-  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 12px;
+  color: rgba(229, 231, 235, 0.70);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
 }
 
 section {
-  margin: 16px 0;
+  margin: 0;
+  padding: 14px;
+  border-radius: 18px;
+  background:
+    radial-gradient(520px 240px at 20% 0%, rgba(255, 255, 255, 0.05), transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.10);
 }
 
 label {
@@ -150,6 +215,14 @@ textarea {
   color: var(--text);
 }
 
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: rgba(0, 196, 106, 0.45);
+  box-shadow: 0 0 0 3px var(--glow);
+}
+
 textarea {
   resize: vertical;
 }
@@ -161,17 +234,55 @@ button {
   background: rgba(255, 255, 255, 0.04);
   color: var(--text);
   cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.055);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+button:disabled:hover {
+  transform: none;
+  border-color: var(--border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+button.small {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
 }
 
 button.primary {
   border-color: rgba(0, 196, 106, 0.45);
-  background: rgba(0, 196, 106, 0.12);
+  background: rgba(0, 196, 106, 0.14);
+  box-shadow: 0 0 0 0 rgba(0, 196, 106, 0);
+}
+
+button.primary:hover {
+  border-color: rgba(0, 196, 106, 0.65);
+  background: rgba(0, 196, 106, 0.18);
+  box-shadow: 0 0 0 3px rgba(0, 196, 106, 0.12);
 }
 
 button.danger {
-  border-color: rgba(255, 77, 79, 0.45);
   border-color: rgba(185, 28, 28, 0.35);
   background: rgba(185, 28, 28, 0.06);
+}
+
+button.danger:hover {
+  border-color: rgba(239, 68, 68, 0.55);
+  background: rgba(239, 68, 68, 0.10);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.10);
 }
 
 small {
@@ -204,10 +315,20 @@ small {
 }
 
 .songCard {
-  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
-  border: 1px solid var(--border);
+  background:
+    radial-gradient(600px 240px at 10% 0%, rgba(0, 196, 106, 0.12), transparent 55%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: 16px;
   padding: 12px;
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.songCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 196, 106, 0.30);
+  box-shadow: var(--shadow);
 }
 
 .songCardTop {
@@ -217,8 +338,35 @@ small {
   align-items: start;
 }
 
+.songCardPoster {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  padding: 4px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.32);
+}
+
+.songCardPoster::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  pointer-events: none;
+  background: radial-gradient(220px 120px at 20% 0%, rgba(0, 196, 106, 0.14), transparent 55%);
+  opacity: 0.9;
+}
+
 .songCardArt {
   display: inline-block;
+}
+
+.songCardArt img,
+.songCardArt div {
+  position: relative;
+  z-index: 1;
 }
 
 .songCardBody {
@@ -232,11 +380,23 @@ small {
   gap: 10px;
 }
 
+.songCardRight {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .songCardTitle {
   font-weight: 800;
   text-decoration: none;
   color: var(--text);
   line-height: 1.2;
+  letter-spacing: 0.1px;
+}
+
+.songCardTitle:hover {
+  text-decoration: underline;
+  text-decoration-color: rgba(0, 196, 106, 0.35);
 }
 
 .songCardMeta {
@@ -256,6 +416,8 @@ small {
   margin-top: 8px;
   color: var(--muted);
   font-size: 13px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .ratingPill {
@@ -264,8 +426,8 @@ small {
   gap: 8px;
   border-radius: 999px;
   padding: 6px 10px;
-  border: 1px solid rgba(251, 191, 36, 0.35);
-  background: rgba(251, 191, 36, 0.10);
+  border: 1px solid rgba(251, 191, 36, 0.40);
+  background: linear-gradient(180deg, rgba(251, 191, 36, 0.14), rgba(251, 191, 36, 0.08));
 }
 
 .ratingPillNum {

@@ -13,7 +13,7 @@ export default function FriendsPage() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
-  const [friendUserId, setFriendUserId] = useState('')
+  const [friendUsername, setFriendUsername] = useState('')
   const [friends, setFriends] = useState([])
   const [feed, setFeed] = useState([])
 
@@ -53,10 +53,29 @@ export default function FriendsPage() {
       await apiFetch('/friends', {
         method: 'POST',
         headers: authHeaders(token),
-        json: { friendUserId }
+        json: { friendUsername }
       })
-      setFriendUserId('')
+      setFriendUsername('')
       setMessage('Friend added.')
+      await load()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function removeFriend(friendId) {
+    if (!token) return
+    setBusy(true)
+    setError('')
+    setMessage('')
+    try {
+      await apiFetch(`/friends/${friendId}`, {
+        method: 'DELETE',
+        headers: authHeaders(token)
+      })
+      setMessage('Friend removed.')
       await load()
     } catch (e) {
       setError(e.message)
@@ -79,11 +98,16 @@ export default function FriendsPage() {
           <section>
             <h2>Add friend</h2>
             <label>
-              Friend ID
-              <input value={friendUserId} onChange={(e) => setFriendUserId(e.target.value)} placeholder="Paste friend ID" />
+              Username
+              <input
+                value={friendUsername}
+                onChange={(e) => setFriendUsername(e.target.value)}
+                placeholder="@username"
+                autoComplete="off"
+              />
             </label>
             <div className="row">
-              <button type="button" className="primary" onClick={addFriend} disabled={busy || !friendUserId}>
+              <button type="button" className="primary" onClick={addFriend} disabled={busy || !friendUsername.trim()}>
                 Add
               </button>
               <button type="button" onClick={load} disabled={busy}>
@@ -101,7 +125,12 @@ export default function FriendsPage() {
                 <div key={f.friendId} className="listItem">
                   <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
                     <div className="subtle">{f.friendProfile?.username ? `@${f.friendProfile.username}` : 'Friend'}</div>
-                    <Link to={`/profiles/${f.friendUserId}`}>View profile</Link>
+                    <div className="row" style={{ alignItems: 'center' }}>
+                      <Link to={`/profiles/${f.friendUserId}`}>View profile</Link>
+                      <button type="button" className="danger" onClick={() => removeFriend(f.friendId)} disabled={busy}>
+                        Remove
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

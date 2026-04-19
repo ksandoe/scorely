@@ -7,9 +7,11 @@ export default function SongCard({ song, rightSlot, footerSlot, to }) {
   return (
     <div className="songCard">
       <div className="songCardTop">
-        <Link to={href} className="songCardArt" aria-label={`Open ${song.title} by ${song.artist}`}>
-          <Artwork src={song.albumArt} alt={`${song.title} album art`} size={64} rounded={12} />
-        </Link>
+        <div className="songCardPoster">
+          <Link to={href} className="songCardArt" aria-label={`Open ${song.title} by ${song.artist}`}>
+            <Artwork src={song.albumArt} alt={`${song.title} album art`} size={64} rounded={12} />
+          </Link>
+        </div>
 
         <div className="songCardBody">
           <div className="songCardTitleRow">

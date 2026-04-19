@@ -2,14 +2,15 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 
 export default function PageHeader() {
-  const { profile, token, logout, status } = useAuth()
+  const { profile, token, status } = useAuth()
 
   return (
     <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
       <div>
         <div className="brand">
-          <Link to="/" style={{ textDecoration: 'none', color: 'var(--text)' }}>
-            Scorely
+          <Link to="/" className="brandLink">
+            <span className="brandMark" aria-hidden="true" />
+            <span>Scorely</span>
           </Link>
         </div>
         <small className="subtle">Music diary</small>
@@ -18,18 +19,13 @@ export default function PageHeader() {
       <div style={{ textAlign: 'right' }}>
         {status === 'loading' ? <small>Loading session…</small> : null}
         {token && profile ? (
-          <div>
-            <div>
-              <span className="pill">@{profile.username}</span>
-            </div>
-            <button type="button" className="danger" onClick={logout} style={{ marginTop: 6 }}>
-              Logout
-            </button>
-          </div>
+          <Link to="/me" className="pill" style={{ textDecoration: 'none' }}>
+            @{profile.username}
+          </Link>
         ) : (
-          <small>
-            <Link to="/account">Not signed in</Link>
-          </small>
+          <Link to="/login" className="pill" style={{ textDecoration: 'none' }}>
+            Login
+          </Link>
         )}
       </div>
     </div>

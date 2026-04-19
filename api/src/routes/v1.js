@@ -6,6 +6,7 @@ import {
   toBookmark,
   toFriend,
   toProfile,
+  toListen,
   toRating,
   toSearchEntry,
   toSong,
@@ -19,8 +20,55 @@ v1Router.get('/health', (req, res) => {
   res.json({ status: 'ok' })
 })
 
+// Discover (external catalogs)
+function normalizeItunesTrack(item) {
+  if (!item) return null
+  const trackId = item.trackId
+  if (!trackId) return null
+
+  const title = item.trackName
+  const artist = item.artistName
+  if (!title || !artist) return null
+
+  const releaseYear = item.releaseDate ? new Date(item.releaseDate).getFullYear() : null
+  const artworkRaw = item.artworkUrl100 || item.artworkUrl60 || item.artworkUrl30 || null
+  const albumArt = artworkRaw ? String(artworkRaw).replace('100x100bb.jpg', '600x600bb.jpg') : null
+
+  return {
+    source: 'itunes',
+    externalId: String(trackId),
+    title: String(title),
+    artist: String(artist),
+    albumArt,
+    releaseYear: Number.isFinite(releaseYear) ? releaseYear : null,
+    genre: item.primaryGenreName ? String(item.primaryGenreName) : null
+  }
+}
+
+v1Router.get('/discover/itunes', async (req, res) => {
+  const q = String(req.query.q ?? '').trim()
+  if (!q) return sendError(res, 400, 'validation_error', 'q is required')
+
+  const limitRaw = Number.parseInt(String(req.query.limit ?? '20'), 10)
+  const limit = Math.min(25, Math.max(1, Number.isFinite(limitRaw) ? limitRaw : 20))
+
+  const url = new URL('https://itunes.apple.com/search')
+  url.searchParams.set('entity', 'song')
+  url.searchParams.set('term', q)
+  url.searchParams.set('limit', String(limit))
+
+  const r = await fetch(url.toString())
+  if (!r.ok) return sendError(res, 502, 'upstream_error', `iTunes error: ${r.status}`)
+
+  const payload = await r.json()
+  const items = Array.isArray(payload?.results) ? payload.results : []
+  const data = items.map(normalizeItunesTrack).filter(Boolean)
+
+  return res.json({ data })
+})
+
 v1Router.post('/auth/otp/start', async (req, res) => {
-  const { email } = req.body ?? {}
+  const { email, createAccount } = req.body ?? {}
   if (!email || typeof email !== 'string') {
     return sendError(res, 400, 'validation_error', 'email is required')
   }
@@ -35,7 +83,7 @@ v1Router.post('/auth/otp/start', async (req, res) => {
 })
 
 v1Router.post('/auth/otp/verify', async (req, res) => {
-  const { email, token } = req.body ?? {}
+  const { email, token, createAccount } = req.body ?? {}
   if (!email || typeof email !== 'string') {
     return sendError(res, 400, 'validation_error', 'email is required')
   }
@@ -58,16 +106,32 @@ v1Router.post('/auth/otp/verify', async (req, res) => {
 
   const supabaseAdmin = getSupabaseAdmin()
 
-  const usernameBase = email.split('@')[0] || 'user'
-  const username = usernameBase.slice(0, 50)
-
-  const { data: profileRow } = await supabaseAdmin
+  const { data: profileRow, error: profileRowError } = await supabaseAdmin
     .from('profiles')
     .select('*')
     .eq('id', userId)
     .maybeSingle()
 
-  if (!profileRow) {
+  if (profileRowError) {
+    return sendError(res, 400, 'unknown_error', profileRowError.message)
+  }
+
+  const shouldCreate = Boolean(createAccount)
+  const isNewUser = !profileRow && shouldCreate
+
+  if (!profileRow && !shouldCreate) {
+    return sendError(
+      res,
+      403,
+      'account_not_found',
+      'No account exists for this email. Create an account or browse as guest.'
+    )
+  }
+
+  if (!profileRow && shouldCreate) {
+    const usernameBase = email.split('@')[0] || 'user'
+    const username = usernameBase.slice(0, 50)
+
     const { error: insertError } = await supabaseAdmin
       .from('profiles')
       .insert({ id: userId, username })
@@ -92,6 +156,7 @@ v1Router.post('/auth/otp/verify', async (req, res) => {
     tokenType: 'Bearer',
     expiresIn: data.session.expires_in,
     refreshToken: data.session.refresh_token ?? null,
+    isNewUser,
     user: toProfile(profileAfter)
   })
 })
@@ -219,15 +284,58 @@ v1Router.get('/songs', async (req, res) => {
   if (req.query.genre) q = q.eq('genre', String(req.query.genre))
   if (req.query.artist) q = q.eq('artist', String(req.query.artist))
   if (req.query.releaseYear) q = q.eq('release_year', Number(req.query.releaseYear))
-
   const { data, count, error } = await q.order('created_at', { ascending: false }).range(from, to)
 
   if (error) return sendError(res, 400, 'unknown_error', error.message)
 
   return res.json({
     data: (data ?? []).map(toSong),
-    meta: { page, pageSize, total: count ?? 0 }
+    page,
+    pageSize
   })
+})
+
+v1Router.post('/songs/import', requireAuth, async (req, res) => {
+  const { source, externalId, title, artist, albumArt, genre, releaseYear } = req.body ?? {}
+
+  if (source !== 'itunes') return sendError(res, 400, 'validation_error', 'source must be itunes')
+  if (!externalId || typeof externalId !== 'string') {
+    return sendError(res, 400, 'validation_error', 'externalId is required')
+  }
+  if (!title || typeof title !== 'string') return sendError(res, 400, 'validation_error', 'title is required')
+  if (!artist || typeof artist !== 'string') return sendError(res, 400, 'validation_error', 'artist is required')
+
+  const yr = releaseYear == null ? null : Number.parseInt(String(releaseYear), 10)
+  const releaseYearNum = Number.isFinite(yr) ? yr : null
+
+  const supabase = getSupabaseAdmin()
+
+  const { data: existing, error: findError } = await supabase
+    .from('songs')
+    .select('*')
+    .eq('external_source', source)
+    .eq('external_id', externalId)
+    .maybeSingle()
+
+  if (findError) return sendError(res, 400, 'unknown_error', findError.message)
+  if (existing) return res.json(toSong(existing))
+
+  const { data, error } = await supabase
+    .from('songs')
+    .insert({
+      title,
+      artist,
+      album_art: typeof albumArt === 'string' ? albumArt : null,
+      genre: typeof genre === 'string' ? genre : null,
+      release_year: releaseYearNum,
+      external_source: source,
+      external_id: externalId
+    })
+    .select('*')
+    .single()
+
+  if (error) return sendError(res, 400, 'validation_error', error.message)
+  return res.status(201).json(toSong(data))
 })
 
 v1Router.post('/songs', requireAuth, async (req, res) => {
@@ -266,6 +374,93 @@ v1Router.get('/songs/:songId', async (req, res) => {
   if (!data) return sendError(res, 404, 'not_found', 'Song not found')
 
   return res.json(toSong(data))
+})
+
+v1Router.get('/songs/:songId/ratings/public', async (req, res) => {
+  const { page, pageSize, from, to } = parsePagination(req.query)
+  const supabase = getSupabaseAnon()
+
+  const { data, count, error } = await supabase
+    .from('ratings')
+    .select('*, profile:profiles(*), song:songs(*)', { count: 'exact' })
+    .eq('song_id', req.params.songId)
+    .order('created_at', { ascending: false })
+    .range(from, to)
+
+  if (error) return sendError(res, 400, 'unknown_error', error.message)
+
+  return res.json({
+    data: (data ?? []).map(toRating),
+    meta: { page, pageSize, total: count ?? 0 }
+  })
+})
+
+// Listens (listening history)
+v1Router.get('/listens', requireAuth, async (req, res) => {
+  const { page, pageSize, from, to } = parsePagination(req.query)
+
+  const supabase = getSupabaseAdmin()
+
+  const { data, error } = await supabase
+    .from('listens')
+    .select('*, song:songs(*)')
+    .eq('user_id', req.auth.userId)
+    .order('listened_at', { ascending: false })
+    .range(from, to)
+
+  if (error) return sendError(res, 400, 'unknown_error', error.message)
+
+  return res.json({
+    data: (data ?? []).map(toListen),
+    page,
+    pageSize
+  })
+})
+
+v1Router.post('/listens', requireAuth, async (req, res) => {
+  const { songId, listenedAt } = req.body ?? {}
+  if (!songId || typeof songId !== 'string') {
+    return sendError(res, 400, 'validation_error', 'songId is required')
+  }
+
+  let listenedAtValue = null
+  if (listenedAt != null) {
+    if (typeof listenedAt !== 'string') {
+      return sendError(res, 400, 'validation_error', 'listenedAt must be an ISO string')
+    }
+    const d = new Date(listenedAt)
+    if (Number.isNaN(d.getTime())) {
+      return sendError(res, 400, 'validation_error', 'listenedAt must be a valid ISO date')
+    }
+    listenedAtValue = d.toISOString()
+  }
+
+  const supabase = getSupabaseAdmin()
+
+  const { data: songRow, error: songError } = await supabase
+    .from('songs')
+    .select('song_id')
+    .eq('song_id', songId)
+    .maybeSingle()
+
+  if (songError) return sendError(res, 400, 'unknown_error', songError.message)
+  if (!songRow) return sendError(res, 404, 'not_found', 'Song not found')
+
+  const insertPayload = {
+    user_id: req.auth.userId,
+    song_id: songId
+  }
+  if (listenedAtValue) insertPayload.listened_at = listenedAtValue
+
+  const { data, error } = await supabase
+    .from('listens')
+    .insert(insertPayload)
+    .select('*, song:songs(*)')
+    .single()
+
+  if (error) return sendError(res, 400, 'validation_error', error.message)
+
+  return res.status(201).json(toListen(data))
 })
 
 v1Router.patch('/songs/:songId', requireAuth, async (req, res) => {
@@ -615,7 +810,7 @@ v1Router.get('/friends', requireAuth, async (req, res) => {
 
   let q = supabase
     .from('friends')
-    .select('*', { count: 'exact' })
+    .select('*, friendProfile:profiles!friends_friend_user_id_fkey(*)', { count: 'exact' })
     .order('created_at', { ascending: false })
 
   if (direction === 'outgoing') {
@@ -636,27 +831,49 @@ v1Router.get('/friends', requireAuth, async (req, res) => {
 })
 
 v1Router.post('/friends', requireAuth, async (req, res) => {
-  const { friendUserId } = req.body ?? {}
-  if (!friendUserId || typeof friendUserId !== 'string') {
-    return sendError(res, 400, 'validation_error', 'friendUserId is required')
-  }
-  if (friendUserId === req.auth.userId) {
-    return sendError(res, 400, 'validation_error', 'Cannot friend yourself')
+  const { friendUserId, friendUsername } = req.body ?? {}
+  if (
+    (friendUserId == null || typeof friendUserId !== 'string') &&
+    (friendUsername == null || typeof friendUsername !== 'string')
+  ) {
+    return sendError(res, 400, 'validation_error', 'friendUserId or friendUsername is required')
   }
 
   const supabase = getSupabaseAdmin()
 
-  const { data: friendProfile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', friendUserId)
-    .maybeSingle()
+  let friendProfile = null
+  if (typeof friendUserId === 'string' && friendUserId) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', friendUserId)
+      .maybeSingle()
+    friendProfile = data
+  } else {
+    const normalized = String(friendUsername || '')
+      .trim()
+      .replace(/^@/, '')
+
+    if (!normalized) {
+      return sendError(res, 400, 'validation_error', 'friendUsername is required')
+    }
+
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('username', normalized)
+      .maybeSingle()
+    friendProfile = data
+  }
 
   if (!friendProfile) return sendError(res, 404, 'not_found', 'Friend profile not found')
+  if (friendProfile.id === req.auth.userId) {
+    return sendError(res, 400, 'validation_error', 'Cannot friend yourself')
+  }
 
   const { data, error } = await supabase
     .from('friends')
-    .insert({ user_id: req.auth.userId, friend_user_id: friendUserId })
+    .insert({ user_id: req.auth.userId, friend_user_id: friendProfile.id })
     .select('*')
     .single()
 

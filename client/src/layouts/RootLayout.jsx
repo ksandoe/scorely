@@ -7,9 +7,10 @@ export default function RootLayout() {
     <>
       <header className="topbar">
         <div className="topbarInner">
-          <PageHeader />
-          <div style={{ height: 10 }} />
-          <Nav />
+          <div className="topbarStack">
+            <PageHeader />
+            <Nav />
+          </div>
         </div>
       </header>
 
